@@ -1,21 +1,36 @@
 package com.example.newBoard.config;
 
+import com.example.newBoard.filter.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
 
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // ✅ CSRF 보호 비활성화 (POST/PUT 요청 가능)
+                .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/**").permitAll() // ✅ /api/**는 인증 없이 허용
-                        .anyRequest().permitAll() // ✅ 나머지도 허용 (지금은 모두 열기)
-                );
+                        // ✅ 인증 없이 접근 가능한 경로
+                        .requestMatchers("/api/auth/**").permitAll()
+                        // ✅ 그 외의 게시판 API는 인증 필요
+                        .requestMatchers("/api/articles/**").authenticated()
+                        // ✅ 나머지는 허용
+                        .anyRequest().permitAll()
+                )
+                // ✅ JWT 필터 추가
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 }

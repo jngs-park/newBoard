@@ -6,13 +6,17 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
-    private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    // ✅ 고정된 비밀키 (32자 이상 권장)
+    private static final String SECRET = "mySuperSecretKeyForJwtAuth1234567890";
+
+    private final SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
 
     // ✅ 토큰 유효시간 (1시간)
     private static final long EXPIRATION_TIME = 1000 * 60 * 60;
@@ -23,16 +27,16 @@ public class JwtUtil {
                 .setSubject(username)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(key)
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // ✅ 토큰에서 사용자 이름 추출
+    // ✅ 사용자 이름 추출
     public String extractUsername(String token) {
         return getClaims(token).getSubject();
     }
 
-    // ✅ 토큰 유효성 검증
+    // ✅ 토큰 검증
     public boolean validateToken(String token) {
         try {
             Claims claims = getClaims(token);
