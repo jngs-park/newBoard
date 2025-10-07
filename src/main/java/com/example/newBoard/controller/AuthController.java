@@ -1,7 +1,7 @@
 package com.example.newBoard.controller;
 
-import com.example.newBoard.entity.User;
 import com.example.newBoard.service.UserService;
+import com.example.newBoard.util.JwtUtil;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -12,9 +12,11 @@ import java.util.Map;
 public class AuthController {
 
     private final UserService userService;
+    private final JwtUtil jwtUtil;
 
-    public AuthController(UserService userService) {
+    public AuthController(UserService userService, JwtUtil jwtUtil) {
         this.userService = userService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/signup")
@@ -38,8 +40,9 @@ public class AuthController {
 
         Map<String, String> response = new HashMap<>();
         if (valid) {
+            String token = jwtUtil.generateToken(username);
             response.put("message", "로그인 성공");
-            // 🔑 다음 단계에서 JWT 토큰 추가 예정
+            response.put("token", token); // ✅ JWT 토큰 발급
         } else {
             response.put("message", "로그인 실패");
         }
