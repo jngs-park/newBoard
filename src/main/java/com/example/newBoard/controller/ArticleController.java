@@ -37,11 +37,10 @@ public class ArticleController {
 
     // ✅ 게시글 작성 (JWT 인증 필요)
     @PostMapping
-    public Article createArticle(
-            @RequestHeader("Authorization") String token,
-            @RequestBody Article article) {
-        return articleService.createArticle(token, article.getTitle(), article.getContent());
+    public Article createArticle(@RequestBody Article article) {
+        return articleService.createArticleWithoutAuth(article.getTitle(), article.getContent());
     }
+
 
     // ✅ 게시글 수정
     @PutMapping("/{id}")
@@ -62,5 +61,7 @@ public class ArticleController {
         response.put("lastArticle", lastArticle);
         return response;
     }
+
+
 
 }

@@ -19,7 +19,7 @@ services:
     image: redis:latest
     container_name: newboard-redis
     ports:
-      - "6380:6379"
+      - "6380:6379"   # ✅ 외부도 내부와 동일하게 맞춰주세요
     networks:
       - newboard-net
 
