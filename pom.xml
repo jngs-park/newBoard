@@ -87,6 +87,22 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- 기존 의존성들 (Spring Web, JPA, MySQL 등) 유지 -->
+
+		<!-- ✅ Kafka -->
+		<dependency>
+				<groupId>org.springframework.kafka</groupId>
+				<artifactId>spring-kafka</artifactId>
+		</dependency>
+
+		<!-- ✅ Redis -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+
+
+
 	</dependencies>
 
 	<build>

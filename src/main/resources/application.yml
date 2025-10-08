@@ -1,18 +1,33 @@
+server:
+  port: 8080
 
-  spring:
-    datasource:
-      url: jdbc:mysql://localhost:3306/newboard_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-      username: root
-      password: PW7480
-      driver-class-name: com.mysql.cj.jdbc.Driver
+spring:
+  datasource:
+    url: jdbc:mysql://newboard-mysql:3306/newboard?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
-    jpa:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
       hibernate:
-        ddl-auto: update
-      show-sql: true
-      properties:
-        hibernate:
-          format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+    show-sql: true
 
-  server:
-    port: 8080
+  data:
+    redis:
+      host: newboard-redis
+      port: 6379
+
+  kafka:
+    bootstrap-servers: newboard-kafka:9092
+    consumer:
+      group-id: newboard-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer

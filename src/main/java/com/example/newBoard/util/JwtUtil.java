@@ -13,15 +13,16 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    // ✅ 고정된 비밀키 (32자 이상 권장)
-    private static final String SECRET = "mySuperSecretKeyForJwtAuth1234567890";
+    private static final String SECRET_KEY = "mySuperSecretKeyForJwtAuth1234567890";
 
-    private final SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+    private final SecretKey key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
 
-    // ✅ 토큰 유효시간 (1시간)
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60;
+    private static final long EXPIRATION_TIME = 1000 * 60 * 60; // 1시간
 
-    // ✅ 토큰 생성
+    public JwtUtil() {
+        System.out.println(">>> JWT SECRET_KEY (runtime): " + new String(key.getEncoded()));
+    }
+
     public String generateToken(String username) {
         return Jwts.builder()
                 .setSubject(username)
@@ -31,12 +32,10 @@ public class JwtUtil {
                 .compact();
     }
 
-    // ✅ 사용자 이름 추출
     public String extractUsername(String token) {
         return getClaims(token).getSubject();
     }
 
-    // ✅ 토큰 검증
     public boolean validateToken(String token) {
         try {
             Claims claims = getClaims(token);
@@ -46,7 +45,6 @@ public class JwtUtil {
         }
     }
 
-    // ✅ Claims 파싱
     private Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)

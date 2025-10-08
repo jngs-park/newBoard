@@ -1,6 +1,6 @@
-package com.example.newboard.repository;
+package com.example.newBoard.repository;
 
-import com.example.newboard.entity.Article;
+import com.example.newBoard.entity.Article;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ArticleRepository extends JpaRepository<Article, Long> {
