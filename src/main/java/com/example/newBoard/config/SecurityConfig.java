@@ -21,9 +21,18 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ 임시: 전체 API 인증 없이 허용 (Kafka 테스트용)
+                        // ✅ Swagger 접근 허용
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
+
+                        // ✅ 일반 API는 임시로 전체 허용 (Kafka 테스트용)
                         .anyRequest().permitAll()
                 )
+                // ✅ JWT 필터 추가 (순서는 그대로 유지)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

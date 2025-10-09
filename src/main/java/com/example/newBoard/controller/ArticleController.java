@@ -3,44 +3,39 @@ package com.example.newBoard.controller;
 import com.example.newBoard.entity.Article;
 import com.example.newBoard.service.ArticleService;
 import org.springframework.web.bind.annotation.*;
-import com.example.newBoard.service.CacheService;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Map;
-import java.util.HashMap;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Tag(name = "Article API", description = "게시글 CRUD 및 Kafka 전송 관련 API")
 @RestController
 @RequestMapping("/api/articles")
 public class ArticleController {
 
     private final ArticleService articleService;
-    private final CacheService cacheService;
 
-    public ArticleController(ArticleService articleService, CacheService cacheService) {
+    public ArticleController(ArticleService articleService) {
         this.articleService = articleService;
-        this.cacheService = cacheService;
     }
 
-
-    // ✅ 전체 조회
+    // ✅ 전체 게시글 조회
     @GetMapping
     public List<Article> getAllArticles() {
         return articleService.findAll();
     }
 
-    // ✅ 단건 조회
+    // ✅ 단일 게시글 조회
     @GetMapping("/{id}")
     public Optional<Article> getArticleById(@PathVariable Long id) {
         return articleService.findById(id);
     }
 
-    // ✅ 게시글 작성 (JWT 인증 필요)
+    // ✅ 게시글 생성 (인증 없이 테스트용)
     @PostMapping
     public Article createArticle(@RequestBody Article article) {
         return articleService.createArticleWithoutAuth(article.getTitle(), article.getContent());
     }
-
 
     // ✅ 게시글 수정
     @PutMapping("/{id}")
@@ -54,14 +49,9 @@ public class ArticleController {
         articleService.deleteArticle(id);
     }
 
+    // ✅ Redis 캐시에서 마지막 게시글 제목 조회
     @GetMapping("/cache")
-    public Map<String, String> getLastCachedArticle() {
-        String lastArticle = cacheService.getLastArticleTitle();
-        Map<String, String> response = new HashMap<>();
-        response.put("lastArticle", lastArticle);
-        return response;
+    public String getLastArticleFromCache() {
+        return articleService.getLastCachedTitle();
     }
-
-
-
 }

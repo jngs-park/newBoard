@@ -6,7 +6,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
+@Tag(name = "Article API", description = "게시글 CRUD 및 Kafka 전송 관련 API")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
