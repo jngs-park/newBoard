@@ -1,3 +1,4 @@
+
 package com.example.newBoard.entity;
 
 import jakarta.persistence.*;

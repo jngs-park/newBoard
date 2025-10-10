@@ -33,8 +33,11 @@ public class ArticleController {
 
     // ✅ 게시글 생성 (인증 없이 테스트용)
     @PostMapping
-    public Article createArticle(@RequestBody Article article) {
-        return articleService.createArticleWithoutAuth(article.getTitle(), article.getContent());
+    public Article createArticle(
+            @RequestHeader("Authorization") String authorization,  // ← 토큰 받기
+            @RequestBody Article article
+    ) {
+        return articleService.createArticle(authorization, article.getTitle(), article.getContent());
     }
 
     // ✅ 게시글 수정

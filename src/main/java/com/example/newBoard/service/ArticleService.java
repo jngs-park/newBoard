@@ -34,12 +34,12 @@ public class ArticleService {
 
     // ✅ 전체 게시글 조회
     public List<Article> findAll() {
-        return articleRepository.findAll();
+        return articleRepository.findAllWithAuthor();
     }
 
     // ✅ 단일 게시글 조회
     public Optional<Article> findById(Long id) {
-        return articleRepository.findById(id);
+        return articleRepository.findByIdWithAuthor(id);
     }
 
     // ✅ 인증 없이 게시글 생성 (Kafka 전송 + Redis 캐시)
