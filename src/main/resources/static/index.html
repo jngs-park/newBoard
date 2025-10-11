@@ -29,6 +29,7 @@
     .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
     a { color:#9fc0ff; text-decoration:none; }
     .kicker { font-size:13px; color:#8ea0c9; margin-top:6px; }
+    .editbox { margin-top:8px; background:#0b1430; border:1px solid #203260; border-radius:10px; padding:10px; }
   </style>
 </head>
 <body>
@@ -52,7 +53,7 @@
                 <button class="ghost" id="btnCopy" title="JWT 복사">토큰 복사</button>
                 <button class="ghost" id="btnLogout">로그아웃</button>
             </div>
-            <div class="muted">※ 로그인 성공 시 JWT를 저장하여 글 작성에 사용합니다.</div>
+            <div class="muted">※ 로그인 성공 시 JWT를 저장하여 <b>작성/수정/삭제</b>에 사용합니다. (조회는 보안설정에 따라 무토큰 가능)</div>
         </div>
 
         <!-- Signup -->
@@ -161,7 +162,6 @@
           return;
         }
         const data = await res.json();
-        // 백엔드가 { token: "<jwt>" } 또는 "Bearer <jwt>" 중 무엇을 주더라도 처리
         let tk = (data.token || data.accessToken || data.jwt || '').toString();
         if (tk.startsWith('Bearer ')) tk = tk.slice(7);
         state.token = tk;
@@ -177,14 +177,8 @@
     async function createArticle() {
       const title = $('atTitle').value.trim();
       const content = $('atContent').value.trim();
-      if (!state.token) {
-        $('atMsg').innerHTML = '❌ 먼저 로그인하세요.';
-        return;
-      }
-      if (!title || !content) {
-        $('atMsg').innerHTML = '❌ 제목/내용을 입력하세요.';
-        return;
-      }
+      if (!state.token) { $('atMsg').innerHTML = '❌ 먼저 로그인하세요.'; return; }
+      if (!title || !content) { $('atMsg').innerHTML = '❌ 제목/내용을 입력하세요.'; return; }
       $('atMsg').textContent = '요청 중…';
 
       try {
@@ -229,19 +223,113 @@
           list.innerHTML = '<div class="muted">게시글이 없습니다.</div>';
           return;
         }
-        list.innerHTML = arr.map(a => `
-          <div class="item">
-            <h4>${escapeHtml(a.title ?? '')}</h4>
-            <div class="muted">${escapeHtml(a.content ?? '')}</div>
-            <div class="muted" style="margin-top:6px;">
-              <small>작성자: ${escapeHtml(a.author?.username ?? '익명')}</small>
-              &nbsp;•&nbsp;
-              <small>생성: ${escapeHtml(a.createdAt ?? '')}</small>
-            </div>
-          </div>
-        `).join('');
+        list.innerHTML = arr.map(a => renderItem(a)).join('');
       } catch (e) {
-        list.innerHTML = '에러: ' + e.message;
+        $('list').innerHTML = '에러: ' + e.message;
+      }
+    }
+
+    function renderItem(a) {
+      const id = a.id;
+      const title = escapeHtml(a.title ?? '');
+      const content = escapeHtml(a.content ?? '');
+      const username = escapeHtml(a.author?.username ?? '익명');
+      const createdAt = escapeHtml(a.createdAt ?? '');
+
+      return `
+        <div class="item" data-id="${id}">
+          <h4>${title}</h4>
+          <div class="muted">${content}</div>
+          <div class="muted" style="margin-top:6px;">
+            <small>작성자: ${username}</small>
+            &nbsp;•&nbsp;
+            <small>생성: ${createdAt}</small>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button data-action="view" data-id="${id}">보기</button>
+            <button class="ghost" data-action="edit" data-id="${id}">수정</button>
+            <button class="ghost" data-action="delete" data-id="${id}">삭제</button>
+          </div>
+
+          <!-- edit box -->
+          <div class="editbox" id="edit-${id}" style="display:none;">
+            <div class="row">
+              <input id="et-${id}" value="${title}" />
+            </div>
+            <div class="row">
+              <textarea id="ec-${id}">${content}</textarea>
+            </div>
+            <div class="row">
+              <button data-action="save" data-id="${id}">저장</button>
+              <button class="ghost" data-action="cancel" data-id="${id}">취소</button>
+            </div>
+            <div class="muted" id="em-${id}"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 단건 보기
+    async function viewArticle(id) {
+      try {
+        const res = await fetch(`${API_BASE}/api/articles/${id}`, {
+          headers: state.token ? { 'Authorization': 'Bearer ' + state.token } : {}
+        });
+        const txt = await res.text();
+        if (!res.ok) { alert(`❌ 실패 (${res.status})\n${txt}`); return; }
+        let a; try { a = JSON.parse(txt); } catch { alert(txt); return; }
+        alert(
+          `#${a.id}\n제목: ${a.title}\n작성자: ${a.author?.username ?? '익명'}\n\n내용:\n${a.content}`
+        );
+      } catch (e) {
+        alert('에러: ' + e.message);
+      }
+    }
+
+    function showEdit(id) { const el = $(`edit-${id}`); if (el) el.style.display = 'block'; }
+    function hideEdit(id) { const el = $(`edit-${id}`); if (el) el.style.display = 'none'; }
+
+    // 수정 저장
+    async function saveEdit(id) {
+      if (!state.token) { alert('로그인이 필요합니다.'); return; }
+      const title = $(`et-${id}`).value.trim();
+      const content = $(`ec-${id}`).value.trim();
+      const msg = $(`em-${id}`);
+      msg.textContent = '저장 중…';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/articles/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + state.token
+          },
+          body: JSON.stringify({ title, content })
+        });
+        const txt = await res.text();
+        if (!res.ok) { msg.innerHTML = `❌ 실패 (${res.status}) <code>${txt}</code>`; return; }
+        msg.innerHTML = '✅ 수정 완료';
+        hideEdit(id);
+        loadArticles();
+      } catch (e) {
+        msg.textContent = '에러: ' + e.message;
+      }
+    }
+
+    // 삭제
+    async function deleteArticle(id) {
+      if (!state.token) { alert('로그인이 필요합니다.'); return; }
+      if (!confirm('정말 삭제할까요?')) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/articles/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + state.token }
+        });
+        const txt = await res.text();
+        if (!res.ok) { alert(`삭제 실패 (${res.status})\n${txt}`); return; }
+        loadArticles();
+      } catch (e) {
+        alert('에러: ' + e.message);
       }
     }
 
@@ -267,7 +355,7 @@
         .replaceAll("'","&#39;");
     }
 
-    // Bind
+    // 이벤트 바인딩
     $('btnSignup').onclick = signup;
     $('btnLogin').onclick = login;
     $('btnCreate').onclick = createArticle;
@@ -276,7 +364,21 @@
     $('btnLogout').onclick = logout;
     $('btnCopy').onclick = copyToken;
 
-    // init
+    // 목록 버튼들(보기/수정/저장/취소/삭제) 이벤트 위임
+    $('list').addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      if (!id || !action) return;
+      if (action === 'view') return viewArticle(id);
+      if (action === 'edit') return showEdit(id);
+      if (action === 'cancel') return hideEdit(id);
+      if (action === 'save') return saveEdit(id);
+      if (action === 'delete') return deleteArticle(id);
+    });
+
+    // 초기화
     showAuth();
     loadArticles();
   </script>
