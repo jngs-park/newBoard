@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>NewBoard Quick UI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    body { margin: 0; background: #0b1020; color: #eaeef6; }
+    .wrap { max-width: 960px; margin: 40px auto; padding: 0 16px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+    .card { grid-column: span 12; background: #121a33; border: 1px solid #243055; border-radius: 14px; padding: 16px; }
+    .card h2 { margin: 0 0 12px; font-size: 18px; color: #9fc0ff; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+    input, textarea { flex: 1; min-width: 180px; background: #0f1730; color: #eaeef6; border: 1px solid #2a3a6a; border-radius: 10px; padding: 10px 12px; outline: none; }
+    textarea { min-height: 90px; }
+    button { background: #2b62ff; color: #fff; border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+    button.ghost { background: transparent; border: 1px solid #2a3a6a; }
+    .muted { color: #aab5d1; font-size: 13px; }
+    .ok { color: #88ffbd; }
+    .err { color: #ff8a8a; }
+    .list { display: grid; gap: 10px; margin-top: 8px; }
+    .item { background: #0f1730; border: 1px solid #22315f; border-radius: 10px; padding: 12px; }
+    .item h4 { margin: 0 0 6px; color: #b8ccff; }
+    .item small { color: #8ea0c9; }
+    .two { grid-column: span 12; }
+    @media (min-width: 820px) { .two { grid-column: span 6; } }
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; background:#16224a; border:1px solid #2a3a6a; font-size:12px; color:#aab5d1; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    a { color:#9fc0ff; text-decoration:none; }
+    .kicker { font-size:13px; color:#8ea0c9; margin-top:6px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="header">
+        <div>
+            <h1 style="margin:0;font-size:22px;">NewBoard Quick UI</h1>
+            <div class="kicker">Spring Boot + MySQL + Kafka + Redis + JWT</div>
+        </div>
+        <div>
+            <span class="badge">Swagger: <a href="./swagger-ui/index.html">/swagger-ui</a></span>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- Auth State -->
+        <div class="card two">
+            <h2>인증 상태</h2>
+            <div class="row">
+                <div class="muted" id="authState">토큰 없음</div>
+                <button class="ghost" id="btnCopy" title="JWT 복사">토큰 복사</button>
+                <button class="ghost" id="btnLogout">로그아웃</button>
+            </div>
+            <div class="muted">※ 로그인 성공 시 JWT를 저장하여 글 작성에 사용합니다.</div>
+        </div>
+
+        <!-- Signup -->
+        <div class="card two">
+            <h2>회원가입</h2>
+            <div class="row">
+                <input id="suId" placeholder="username (중복 불가)" />
+                <input id="suPw" placeholder="password" type="password" />
+                <button id="btnSignup">가입</button>
+            </div>
+            <div class="muted" id="suMsg"></div>
+        </div>
+
+        <!-- Login -->
+        <div class="card two">
+            <h2>로그인</h2>
+            <div class="row">
+                <input id="liId" placeholder="username" />
+                <input id="liPw" placeholder="password" type="password" />
+                <button id="btnLogin">로그인</button>
+            </div>
+            <div class="muted" id="liMsg"></div>
+        </div>
+
+        <!-- Create Article -->
+        <div class="card two">
+            <h2>글 작성 (JWT 필요)</h2>
+            <div class="row">
+                <input id="atTitle" placeholder="제목" />
+            </div>
+            <div class="row">
+                <textarea id="atContent" placeholder="내용"></textarea>
+            </div>
+            <div class="row">
+                <button id="btnCreate">작성</button>
+                <button class="ghost" id="btnRefresh">목록 새로고침</button>
+            </div>
+            <div class="muted" id="atMsg"></div>
+        </div>
+
+        <!-- List -->
+        <div class="card" style="grid-column: span 12;">
+            <div class="row" style="justify-content:space-between; align-items:center;">
+                <h2 style="margin:0;">게시글 목록</h2>
+                <button class="ghost" id="btnLoad">불러오기</button>
+            </div>
+            <div class="list" id="list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 같은 오리진(8081)에서 열리므로 BASE는 공백 처리
+    const API_BASE = ''; // '' == same origin
+    const $ = (id) => document.getElementById(id);
+
+    const state = {
+      token: localStorage.getItem('jwt') || ''
+    };
+
+    function showAuth() {
+      if (state.token) {
+        $('authState').innerHTML = `로그인됨 · <span class="ok">JWT 보유</span> (앞 16자) ${state.token.slice(0,16)}…`;
+      } else {
+        $('authState').innerHTML = '<span class="err">토큰 없음</span>';
+      }
+    }
+
+    async function signup() {
+      const username = $('suId').value.trim();
+      const password = $('suPw').value;
+      $('suMsg').textContent = '요청 중…';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          $('suMsg').innerHTML = `❌ 실패 (${res.status})<br/><code>${t}</code>`;
+          return;
+        }
+        const data = await res.json().catch(()=> ({}));
+        $('suMsg').innerHTML = `✅ ${data.message || 'signup ok'}`;
+      } catch (e) {
+        $('suMsg').textContent = '에러: ' + e.message;
+      }
+    }
+
+    async function login() {
+      const username = $('liId').value.trim();
+      const password = $('liPw').value;
+      $('liMsg').textContent = '요청 중…';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          $('liMsg').innerHTML = `❌ 실패 (${res.status})<br/><code>${t}</code>`;
+          return;
+        }
+        const data = await res.json();
+        // 백엔드가 { token: "<jwt>" } 또는 "Bearer <jwt>" 중 무엇을 주더라도 처리
+        let tk = (data.token || data.accessToken || data.jwt || '').toString();
+        if (tk.startsWith('Bearer ')) tk = tk.slice(7);
+        state.token = tk;
+        localStorage.setItem('jwt', tk);
+        $('liMsg').innerHTML = '✅ 로그인 성공';
+        showAuth();
+        loadArticles();
+      } catch (e) {
+        $('liMsg').textContent = '에러: ' + e.message;
+      }
+    }
+
+    async function createArticle() {
+      const title = $('atTitle').value.trim();
+      const content = $('atContent').value.trim();
+      if (!state.token) {
+        $('atMsg').innerHTML = '❌ 먼저 로그인하세요.';
+        return;
+      }
+      if (!title || !content) {
+        $('atMsg').innerHTML = '❌ 제목/내용을 입력하세요.';
+        return;
+      }
+      $('atMsg').textContent = '요청 중…';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/articles`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + state.token
+          },
+          body: JSON.stringify({ title, content })
+        });
+        const text = await res.text();
+        if (!res.ok) {
+          $('atMsg').innerHTML = `❌ 실패 (${res.status})<br/><code>${text}</code>`;
+          return;
+        }
+        $('atMsg').innerHTML = '✅ 작성 성공';
+        $('atTitle').value = '';
+        $('atContent').value = '';
+        loadArticles();
+      } catch (e) {
+        $('atMsg').textContent = '에러: ' + e.message;
+      }
+    }
+
+    async function loadArticles() {
+      const list = $('list');
+      list.innerHTML = '불러오는 중…';
+      try {
+        const res = await fetch(`${API_BASE}/api/articles`, {
+          headers: state.token ? { 'Authorization': 'Bearer ' + state.token } : {}
+        });
+        const text = await res.text();
+        if (!res.ok) {
+          list.innerHTML = `❌ 실패 (${res.status})<br/><code>${text}</code>`;
+          return;
+        }
+        let arr = [];
+        try { arr = JSON.parse(text); } catch { arr = []; }
+        if (!Array.isArray(arr)) arr = [];
+        if (arr.length === 0) {
+          list.innerHTML = '<div class="muted">게시글이 없습니다.</div>';
+          return;
+        }
+        list.innerHTML = arr.map(a => `
+          <div class="item">
+            <h4>${escapeHtml(a.title ?? '')}</h4>
+            <div class="muted">${escapeHtml(a.content ?? '')}</div>
+            <div class="muted" style="margin-top:6px;">
+              <small>작성자: ${escapeHtml(a.author?.username ?? '익명')}</small>
+              &nbsp;•&nbsp;
+              <small>생성: ${escapeHtml(a.createdAt ?? '')}</small>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        list.innerHTML = '에러: ' + e.message;
+      }
+    }
+
+    function logout() {
+      state.token = '';
+      localStorage.removeItem('jwt');
+      showAuth();
+    }
+
+    function copyToken() {
+      if (!state.token) return;
+      navigator.clipboard.writeText(state.token).then(() => {
+        alert('JWT 복사 완료');
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'","&#39;");
+    }
+
+    // Bind
+    $('btnSignup').onclick = signup;
+    $('btnLogin').onclick = login;
+    $('btnCreate').onclick = createArticle;
+    $('btnRefresh').onclick = loadArticles;
+    $('btnLoad').onclick = loadArticles;
+    $('btnLogout').onclick = logout;
+    $('btnCopy').onclick = copyToken;
+
+    // init
+    showAuth();
+    loadArticles();
+  </script>
+</body>
+</html>
